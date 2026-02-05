@@ -1,0 +1,22 @@
+
+{
+    "data-folder": "data",
+    "job-user-id": "0",
+    "api-access-token": "default",
+    "default-environment": "local",
+    "environments": {
+        "local": {
+            "type": "QuantConnect.Lean.Engine.DataFeeds.FileSystemDataFeed",
+            "data-folder": "data",
+            "results-destination-folder": "results",
+            "algorithm-language": "Python",
+            "data-provider": "QuantConnect.Lean.Engine.DataFeeds.DefaultDataProvider",
+            "map-file-provider": "QuantConnect.Lean.Engine.DataFeeds.LocalDiskMapFileProvider",
+            "factor-file-provider": "QuantConnect.Lean.Engine.DataFeeds.LocalDiskFactorFileProvider",
+            "data-queue-handler": [
+                "QuantConnect.Lean.Engine.DataFeeds.DefaultDataQueueHandler"
+            ],
+            "messaging-handler": "QuantConnect.Messaging.Messaging"
+        }
+    }
+}
