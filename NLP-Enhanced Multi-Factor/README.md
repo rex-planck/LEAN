@@ -1,104 +1,117 @@
-# NLP-Enhanced Multi-Factor Strategy
+# NLP-Enhanced Multi-Factor Strategy (NLP 增强多因子策略)
+
 [English](./README_EN.md)
 
 ![Backtest Result](backtest_results/002202_backtest.png)
+*(图示：金风科技 002202 回测净值曲线，策略显著跑赢基准)*
 
-## 1. 项目概述
+## 1. 项目概述 (Overview)
 
-本项目旨在构建一个基于**NLP（自然语言处理）**技术的量化交易系统。通过抓取金融研报、新闻等非结构化文本数据，利用预训练深度学习模型分析市场情绪，生成**情感因子 (Sentiment Factor)**，并结合传统技术指标，构建多因子选股策略。
+本项目旨在构建一个前沿的**基于 NLP（自然语言处理）技术的量化交易系统**。通过自动化抓取金融市场中的非结构化文本数据（如个股研报、新闻资讯），利用深度学习模型或情感词典分析市场情绪，生成可交易的**情感因子 (Sentiment Factor)**。该因子与传统的技术指标（如均线趋势）相结合，构建出一个稳健的多因子选股策略，旨在捕捉机构情绪变化带来的超额收益。
 
 **核心逻辑：**
-1.  **数据获取**: 利用 AKShare 接口抓取 A 股个股的研报摘要、新闻资讯。
-2.  **情感计算**: 使用 FinBERT 或情感词典模型，对每一条文本进行情感打分 (Positive/Negative/Neutral)。
-3.  **策略构建**: 将情感分数作为 Alpha 因子，结合均线趋势 (MA) 进行择时交易。
-4.  **回测验证**: 在历史数据上验证策略有效性，评估超额收益。
+1.  **多源数据获取 (Data ETL)**: 利用 `AKShare` 接口实时抓取 A 股市场的个股研报摘要、公告及新闻数据。
+2.  **情感量化计算 (Sentiment Analysis)**: 使用 FinBERT 模型或金融情感词典，对每一篇研报进行情感打分 (Positive/Negative/Neutral)，将非结构化文本转化为结构化的 `sentiment_score`。
+3.  **多因子策略构建 (Factor Combinations)**: 
+    *   **Alpha 因子**: 研报情感得分（反映机构看多/看空态度）。
+    *   **Beta 因子**: 均线趋势（MA5/MA20 金叉死叉）确认市场方向。
+    *   **风险控制**: 基于情感分数的动态仓位管理。
+4.  **回测与验证 (Backtesting)**: 使用 LEAN 引擎或本地 Python 脚本在历史数据上验证策略有效性，评估年化收益、最大回撤及夏普比率。
 
 ---
 
-## 2. 技术架构
+## 2. 技术架构与工作流
 
-### 2.1 数据流 (ETL Pipeline)
-*   **Data Source**: AKShare (东方财富接口 `stock_research_report_em`)
-*   **Raw Data**: 存储于 `data/alternative/reports/` (CSV格式)
-*   **Processing**: `etl/calc_report_sentiment.py` 读取研报，计算情感分。
-*   **Features**: 生成带有 `sentiment_score` 的数据集，存储于 `data/alternative/sentiment_reports/`。
+### 2.1 数据管道 (ETL Pipeline)
+*   **Data Source**: 
+    *   研报数据: AKShare `stock_research_report_em` (东方财富)
+    *   新闻数据: AKShare `stock_news_em` (可选)
+*   **Raw Data Storage**: 原始数据以 CSV 格式存储于 `data/alternative/reports/`。
+*   **Feature Engineering**: `etl/calc_report_sentiment.py` 脚本读取原始研报，进行清洗、分词、情感打分。
+*   **Processed Data**: 生成带有 `sentiment_score` 的时间序列数据，存储于 `data/alternative/sentiment_reports/`，供策略引擎直接调用。
 
 ### 2.2 核心模型 (Models)
-*   **NLP Model**: 使用简单的基于规则/词典的情感分析 (当前阶段)，或 HuggingFace Transformers (进阶)。
-    *   *Current Implementation*: 基于关键词的情感打分算法（Mock/Rule-based）。
-*   **Strategy Model**: 
-    *   **Signal 1**: 研报情感分 > 0.8 (强利好) -> 强力买入。
-    *   **Signal 2**: 技术面金叉 (MA5 > MA20) & 情感分不为负 -> 趋势跟踪买入。
-    *   **Signal 3**: 情感分 < -0.2 或 技术面死叉 -> 卖出/止损。
-    *   **Decay**: 情感信号随时间衰减 (每天衰减 10%)，模拟市场对信息的消化过程。
+*   **NLP Model**: 
+    *   *当前实现*: 基于特定金融关键词（如“买入”、“增持”、“超预期” vs “下调”、“风险”）的规则/词典打分模型。
+    *   *未来升级*: 计划接入 HuggingFace Transformers (FinBERT) 进行更精准的上下文语义分析。
+*   **Trading Strategy**: 
+    *   **买入信号**: 当日有新研报发布且情感分 > 0.8 (强利好) **AND** 股价位于均线之上。
+    *   **卖出信号**: 情感分 < -0.2 (利空/不及预期) **OR** 技术面出现死叉。
+    *   **信号衰减**: 情感信号随时间线性衰减 (每日衰减 10%)，模拟市场对信息的逐步消化过程。
 
 ---
 
-## 3. 项目结构
+## 3. 项目结构 (Project Structure)
 
 ```bash
 ├── data/
-│   ├── equity/daily/       # 股票日线行情数据 (OHLCV)
+│   ├── equity/daily/          # 股票日线行情数据 (OHLCV)
 │   └── alternative/
-│       ├── reports/        # 原始研报数据
-│       └── sentiment_reports/ # 包含情感分数的研报数据
+│       ├── reports/           # 原始研报数据 (Raw Data)
+│       └── sentiment_reports/ # 清洗并计算情感分后的研报数据 (Processed Features)
 ├── etl/
-│   ├── download_reports.py # 下载研报脚本
-│   └── calc_report_sentiment.py # 计算情感分脚本
+│   ├── download_reports.py    # 数据下载脚本 (AKShare -> Local)
+│   └── calc_report_sentiment.py # 情感计算脚本 (Text -> Sentiment Score)
 ├── SentimentAlphaStrategy/
-│   └── main.py             # LEAN 引擎策略文件 (C#/Python)
-├── run_strategy_local.py   # 本地轻量级回测脚本 (Python)
-└── backtest_results/       # 回测结果图表
+│   └── main.py                # LEAN 引擎策略主文件 (C#/Python 适配)
+├── run_strategy_local.py      # 本地轻量级回测引擎 (Python, Pandas-based)
+├── backtest_results/          # 回测结果图表与日志
+└── README.md                  # 项目文档
 ```
 
 ---
 
-## 4. 回测结果分析
+## 4. 回测表现 (Performance)
 
-我们对以下 6 只标的进行了回测 (2023-02 至 2026-01)：
-*   **金风科技 (002202)**: 策略收益 **327.62%** vs 基准 130.65% (显著跑赢)
-*   **明阳智能 (601615)**: 策略收益 **144.76%** vs 基准 -13.01% (逆势盈利)
-*   **铜陵有色 (000630)**: 策略收益 **265.62%** vs 基准 152.13%
-*   **云南铜业 (000878)**: 策略收益 112.89% vs 基准 117.20% (持平)
-*   **吉电股份 (000875)**: 策略收益 104.68% vs 基准 18.12%
-*   **振华股份 (603067)**: 策略收益 256.44% vs 基准 220.86%
+我们对以下代表性标的进行了回测 (区间: 2023-02 至 2026-01)，结果显示策略在大多数情况下具备显著的超额收益能力：
 
-**结论：**
-1.  **情感因子的有效性**: 在大多数标的中，引入情感因子能显著增强收益，特别是在市场下跌或震荡时 (如 601615)，情感因子能及时提示风险（负面研报或缺乏正面研报），帮助策略空仓避险。
-2.  **超额收益来源**: 
-    *   **及时性**: 研报发布往往意味着机构关注度提升，股价随后有惯性上涨。
-    *   **过滤噪音**: 结合技术面趋势，过滤掉了部分单纯由情绪驱动的短期波动，只在趋势与情绪共振时下注。
+| 股票代码 | 股票名称 | 策略总收益 | 基准收益 (Buy&Hold) | 表现评价 |
+| :--- | :--- | :--- | :--- | :--- |
+| **002202** | **金风科技** | **+327.62%** | +130.65% | 🚀 **显著跑赢** (Alpha 显著) |
+| **601615** | **明阳智能** | **+144.76%** | -13.01% | 🛡️ **逆势盈利** (避险能力强) |
+| **000630** | **铜陵有色** | **+265.62%** | +152.13% | ✅ 跑赢大盘 |
+| **603067** | **振华股份** | **+256.44%** | +220.86% | ✅ 小幅跑赢 |
+| **000878** | **云南铜业** | +112.89% | +117.20% | ➖ 持平 |
+| **000875** | **吉电股份** | +104.68% | +18.12% | ✅ 显著跑赢 |
+
+**核心洞察：**
+1.  **避险属性**: 在个股下跌趋势中（如明阳智能），情感因子能有效识别负面情绪或信息的真空期，提示策略空仓，从而避免了基准策略的大幅回撤。
+2.  **趋势增强**: 在上涨趋势中，研报的密集发布往往是机构建仓的信号，策略通过情感因子加仓，放大了上涨收益。
 
 ---
 
-## 5. 快速开始
+## 5. 快速开始 (Quick Start)
 
 ### 环境准备
+确保已安装 Python 3.8+ 及以下依赖：
 ```bash
 pip install pandas akshare matplotlib
 ```
 
-### 1. 下载数据
+### 1. 数据更新 (Data Update)
+下载最新的个股研报数据：
 ```bash
 python etl/download_reports.py
 ```
-这将在 `data/alternative/reports/` 下生成最新的研报数据。
 
-### 2. 计算情感分
+### 2. 因子计算 (Factor Calculation)
+处理文本数据，生成情感因子文件：
 ```bash
 python etl/calc_report_sentiment.py
 ```
-读取研报，生成情感分数，保存至 `data/alternative/sentiment_reports/`。
 
-### 3. 运行本地回测
+### 3. 运行回测 (Run Backtest)
+执行本地回测脚本，生成净值曲线：
 ```bash
 python run_strategy_local.py
 ```
-脚本将读取本地数据，模拟交易逻辑，并在 `backtest_results/` 目录下生成净值曲线图。
+结果图片将保存在 `backtest_results/` 目录下。
 
 ---
 
-## 6. 未来改进计划
-*   **引入大模型**: 使用 BERT/ChatGPT 对研报内容进行更深度的语义理解，而非简单的关键词匹配。
-*   **多数据源**: 增加新闻、社交媒体 (雪球/股吧) 数据，捕捉散户情绪。
-*   **因子优化**: 研究情感分数的半衰期，优化信号衰减逻辑。
+## 6. 未来展望 (Roadmap)
+
+*   **LLM 深度赋能**: 引入 ChatGPT/Claude API 或本地部署 LLaMA 模型，对研报进行摘要提取和深层逻辑分析，不仅仅局限于情感打分。
+*   **多模态数据**: 结合宏观经济数据、行业板块轮动数据，构建更立体的多因子模型。
+*   **高频情绪**: 接入雪球、股吧等散户论坛数据，开发“反向指标”或“情绪过热”预警功能。
+*   **实盘对接**: 将信号生成模块对接至交易柜台 (如 QMT/Ptrade)，实现自动化交易。
