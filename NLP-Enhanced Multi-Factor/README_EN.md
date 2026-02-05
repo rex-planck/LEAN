@@ -2,7 +2,7 @@
 
 # 🚀 NLP-Enhanced Multi-Factor Strategy
 
-**[中文文档](https://www.google.com/search?q=./README.md)** | **[Report Bug](https://www.google.com/search?q=https://github.com/rex-planck/LEAN/issues)** | **[Request Feature](https://www.google.com/search?q=https://github.com/rex-planck/LEAN/issues)**
+[中文](./README.md)
 
 This project is a high-performance **Quantitative Trading System** that bridges the gap between unstructured financial text and systematic trading. By leveraging **Natural Language Processing (NLP)**, it quantifies market sentiment from research reports to create a powerful Alpha factor, combined with technical trend-following for robust execution.
 
